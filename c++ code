@@ -1,0 +1,126 @@
+#include <iostream>
+#include <string>
+#include <vector>
+#include <sstream>
+#include <cmath>
+#include <map>
+
+using namespace std;
+
+// Sample JSON string as the default input
+const string json = R"({
+    "keys": {
+        "n": 4,
+        "k": 3
+    },
+    "1": {
+        "base": "10",
+        "value": "4"
+    },
+    "2": {
+        "base": "2",
+        "value": "111"
+    },
+    "3": {
+        "base": "10",
+        "value": "12"
+    },
+    "6": {
+        "base": "4",
+        "value": "213"
+    }
+})";
+
+// Function to decode a number from a given base to base 10
+long long decodeValue(const string& value, int base) {
+    long long result = 0;
+    for (char c : value) {
+        result = result * base + (isdigit(c) ? c - '0' : c - 'a' + 10);
+    }
+    return result;
+}
+
+// Function to perform Lagrange interpolation to find f(0) (constant term)
+long long lagrangeInterpolation(const vector<pair<int, long long>>& points) {
+    long long constant = 0;
+    for (size_t i = 0; i < points.size(); i++) {
+        long long term = points[i].second;
+        for (size_t j = 0; j < points.size(); j++) {
+            if (i != j) {
+                term *= points[j].first;
+                term /= (points[j].first - points[i].first);
+            }
+        }
+        constant += term;
+    }
+    return constant;
+}
+
+// Function to safely parse integers from substrings
+int parseIntSafely(const string& str) {
+    try {
+        return stoi(str);
+    } catch (...) {
+        return 0; // defaulting to 0 if parsing fails
+    }
+}
+
+// Function to parse JSON-like string to extract points, n, and k
+void parseJson(int &n, int &k, vector<pair<int, long long>>& points) {
+    size_t pos = json.find("\"n\"");
+    if (pos != string::npos) {
+        n = parseIntSafely(json.substr(pos + 5, json.find(",", pos) - pos - 5));
+    }
+
+    pos = json.find("\"k\"");
+    if (pos != string::npos) {
+        k = parseIntSafely(json.substr(pos + 5, json.find("}", pos) - pos - 5));
+    }
+
+    // Parse each (x, y) pair
+    pos = 0;
+    while ((pos = json.find("\"", pos)) != string::npos) {
+        // Extract x (key as integer)
+        size_t keyPos = pos + 1;
+        size_t keyEnd = json.find("\"", keyPos);
+        int x = parseIntSafely(json.substr(keyPos, keyEnd - keyPos));
+
+        // Extract base
+        size_t basePos = json.find("\"base\"", keyEnd);
+        size_t baseValPos = json.find("\"", basePos + 8);
+        int base = parseIntSafely(json.substr(basePos + 8, baseValPos - (basePos + 8)));
+
+        // Extract value
+        size_t valuePos = json.find("\"value\"", baseValPos);
+        size_t valueStart = json.find("\"", valuePos + 8);
+        size_t valueEnd = json.find("\"", valueStart + 1);
+        string value = json.substr(valueStart + 1, valueEnd - valueStart - 1);
+
+        // Decode y
+        long long y = decodeValue(value, base);
+        points.push_back({x, y});
+
+        pos = valueEnd + 1;
+    }
+}
+
+int main() {
+    // Parse JSON-like string to get n, k, and points
+    int n = 0, k = 0;
+    vector<pair<int, long long>> points;
+    parseJson(n, k, points);
+
+    cout << "Number of points (n): " << n << ", Minimum required points (k): " << k << endl;
+
+    cout << "Parsed Points:" << endl;
+    for (const auto& [x, y] : points) {
+        cout << "x: " << x << ", y: " << y << endl;
+    }
+
+    // Calculate the constant term using Lagrange interpolation
+    long long secret = lagrangeInterpolation(points);
+    cout << "The constant term (secret) is: " << secret << endl;
+
+    return 0;
+}
+
